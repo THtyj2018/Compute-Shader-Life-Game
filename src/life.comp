@@ -1,0 +1,39 @@
+#version 450
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0, r8) uniform readonly image2D src_image;
+layout(binding = 1, r8) uniform image2D dst_image;
+
+layout(push_constant) uniform Constants {
+    int width;
+    int height;
+} info;
+
+void main() {
+    int x = int(gl_GlobalInvocationID.x);
+    int y = int(gl_GlobalInvocationID.y);
+    int l = (x == 0) ? (info.width - 1) : (x - 1);
+    int t = (y == 0) ? (info.height - 1) : (y - 1);
+    int r = (x + 1) % info.width;
+    int b = (y + 1) % info.height;
+    ivec2 points[8] = {
+        ivec2(l, t), ivec2(l, y), ivec2(l, b),
+        ivec2(x, t), ivec2(x, b),
+        ivec2(r, t), ivec2(r, y), ivec2(r, b),
+    };
+    uint cnt = 0;
+    for (int i = 0; i < 8; ++i)
+    {
+        float src = imageLoad(src_image, points[i]).x;
+        if (src >= 0.5)
+            cnt += 1;
+    }
+    float value = 0;
+    ivec2 point = ivec2(x, y);
+    if (cnt == 2)
+        value = imageLoad(src_image, point).x;
+    else if (cnt == 3)
+        value = 1.0;
+    imageStore(dst_image, point, uvec4(value, 0, 0, 0));
+}
